@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Base Rate Impact on AI Detection Tool Performance</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+  <style>
+    :root {
+      --primary-color: #0066cc;
+      --accent-color: #ff9500;
+      --success-color: #34c759;
+      --warning-color: #ff3b30;
+      --text-color: #333;
+      --text-light: #6e6e73;
+      --bg-color: #f5f5f7;
+      --card-color: #fff;
+      --border-radius: 12px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --transition: all 0.3s ease;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      max-width: 1300px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+    
+    /* Dashboard Layout */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      grid-template-rows: auto 1fr;
+      grid-gap: 16px;
+      height: calc(100vh - 40px);
+      max-height: 900px;
+      min-height: 700px;
+    }
+    
+    .header {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+    
+    .controls-panel {
+      grid-column: 1;
+      grid-row: 2;
+      align-self: start;
+    }
+    
+    .main-panel {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 1000px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        height: auto;
+      }
+      
+      .controls-panel {
+        grid-column: 1;
+        grid-row: 2;
+      }
+      
+      .main-panel {
+        grid-column: 1;
+        grid-row: 3;
+        grid-template-rows: auto auto;
+      }
+    }
+    
+    /* Card styling */
+    .card {
+      background: var(--card-color);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .card-header {
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      margin: -20px -20px 15px -20px;
+      padding: 15px 20px;
+    }
+    
+    .card-header h2 {
+      font-size: 18px;
+      margin: 0;
+      color: var(--primary-color);
+    }
+    
+    .card-content {
+      min-width: 0;
+      width: 100%;
+      max-width: none;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Header styles */
+    .app-title {
+      color: var(--text-color);
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .app-subtitle {
+      color: var(--text-light);
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    
+    .framework-info {
+      padding: 15px;
+      background: rgba(0,102,204,0.06);
+      border-radius: var(--border-radius);
+      margin-bottom: 15px;
+    }
+    
+    .framework-info h2 {
+      color: var(--primary-color);
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    
+    .framework-info p {
+      color: var(--text-color);
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    
+    /* Chart panel */
+    .chart-container {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
+    
+    .reference-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      border-top: 2px dashed var(--accent-color);
+      z-index: 5;
+    }
+    
+    .reference-line-label {
+      position: absolute;
+      right: 10px;
+      top: -1.2em;
+      background: rgba(255,255,255,0.8);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+      color: var(--accent-color);
+    }
+    
+    /* Key metrics */
+    .key-metrics {
+      min-width: 0;
+      width: 100%;
+      max-width: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-gap: 16px;
+      margin-top: 15px;
+    }
+    
+    .metric {
+      text-align: center;
+      padding: 12px;
+      background: #f9f9fb;
+      border-radius: 8px;
+    }
+    
+    .metric h3 {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-light);
+      margin-bottom: 5px;
+    }
+    
+    .metric .value {
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .metric .description {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 3px;
+    }
+    
+    .positive-value {
+      color: var(--success-color);
+    }
+    
+    .negative-value {
+      color: var(--warning-color);
+    }
+    
+    .neutral-value {
+      color: var(--primary-color);
+    }
+    
+    .warning-value {
+      color: var(--warning-color);
+    }
+    
+    /* Controls */
+    .control-group {
+      margin-bottom: 24px;
+    }
+    
+    .control-group h3 {
+      font-size: 14px;
+      color: var(--text-color);
+      margin-bottom: 12px;
+    }
+    
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .control-value {
+      font-weight: 600;
+      color: var(--primary-color);
+      background: rgba(0,102,204,0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    
+    input[type="range"] {
+      width: 100%;
+      margin: 5px 0;
+      -webkit-appearance: none;
+      height: 4px;
+      background: #e9e9eb;
+      border-radius: 2px;
+      outline: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary-color);
+      cursor: pointer;
+    }
+    
+    .control-info {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-light);
+    }
+    
+    /* Impact visualization */
+    .impact-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    
+    .impact-title h3 {
+      font-size: 16px;
+      color: var(--text-color);
+    }
+    
+    .students-total {
+      font-size: 14px;
+      color: var(--text-light);
+    }
+    
+    .visual-bar {
+      height: 50px;
+      display: flex;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      position: relative;
+    }
+    
+    .segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      transition: var(--transition);
+      position: relative;
+    }
+    
+    .true-positive-segment {
+      background-color: var(--success-color);
+    }
+    
+    .false-positive-segment {
+      background-color: var(--warning-color);
+    }
+    
+    .segment-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-light);
+      margin-bottom: 20px;
+    }
+    
+    /* About Base Rate */
+    .info-section {
+      margin-top: 24px;
+    }
+    
+    .info-section h3 {
+      font-size: 15px;
+      margin-bottom: 8px;
+      color: var(--text-color);
+    }
+    
+    .info-section p {
+      font-size: 13px;
+      color: var(--text-light);
+      margin-bottom: 10px;
+    }
+    
+    /* Student selector */
+    .students-control {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      background: #f9f9fb;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .students-control label {
+      font-size: 13px;
+      margin-right: 10px;
+      white-space: nowrap;
+      color: var(--text-light);
+    }
+    
+    .students-control input {
+      flex: 1;
+      margin: 0 10px;
+    }
+    
+    .students-count {
+      font-weight: 600;
+      color: var(--primary-color);
+      font-size: 14px;
+    }
+    
+    .spacer {
+      flex-grow: 1;
+    }
+    
+    /* Icon styles for metrics */
+    .icon-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+    
+    .icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+    }
+    
+    .icon-reliability {
+      background-color: var(--warning-color);
+    }
+    
+    .icon-npv {
+      background-color: var(--success-color);
+    }
+    
+    .icon-recommendation {
+      background-color: var(--primary-color);
+    }
+    
+    .icon-accuracy {
+      background-color: var(--accent-color);
+    }
+    
+    /* Visual container for bar */
+    .visual-container {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="dashboard">
+    <!-- Header Area -->
+    <header class="header">
+      <!-- <h1 class="app-title">Impact of Base Rate on AI Detection Tool Performance</h1>
+      <p class="app-subtitle">A demonstration of Bayesian statistical analysis for academic integrity</p>
+       -->
+      <div class="framework-info">
+        <h2>Academic Integrity in the Loop Framework</h2>
+        <p>
+          This visualization demonstrates why institutions must account for their specific base-rate context when implementing 
+          AI detection tools. The framework provides the statistical foundation for determining where human judgment must 
+          supplement technological detection.
+        </p>
+      </div>
+    </header>
+    
+    <!-- Controls Panel -->
+    <section class="controls-panel card">
+      <div class="card-header">
+        <h2>Controls</h2>
+      </div>
+      
+      <!-- Base Rate Control -->
+      <div class="control-group">
+        <div class="control-label">
+          <span>Base Rate:</span>
+          <span class="control-value"><span id="baseRateValue">5</span>%</span>
+        </div>
+        <input type="range" id="baseRateSlider" min="1" max="25" value="5" step="1" />
+        <div class="control-info">Percentage of students using AI</div>
+      </div>
+      
+      <!-- Sensitivity Control -->
+      <div class="control-group">
+        <div class="control-label">
+          <span>Sensitivity:</span>
+          <span class="control-value"><span id="sensitivityValue">99</span>%</span>
+        </div>
+        <input type="range" id="sensitivitySlider" min="90" max="100" value="99" step="1" />
+        <div class="control-info">Tool's ability to detect AI-generated text</div>
+      </div>
+      
+      <!-- Specificity Control -->
+      <div class="control-group">
+        <div class="control-label">
+          <span>Specificity:</span>
+          <span class="control-value"><span id="specificityValue">99</span>%</span>
+        </div>
+        <input type="range" id="specificitySlider" min="90" max="100" value="99" step="1" />
+        <div class="control-info">Tool's ability to identify human-written text</div>
+      </div>
+      
+      <!-- Students Control -->
+      <div class="control-group">
+        <div class="control-label">
+          <span>Number of Students:</span>
+          <span class="control-value"><span id="numStudentsValue">200</span></span>
+        </div>
+        <input type="range" id="numStudentsSlider" min="10" max="1000" value="200" step="10" />
+      </div>
+      
+      <!-- About Base Rate -->
+      <div class="info-section">
+        <h3>About Base Rate</h3>
+        <p>
+          Base rate represents how prevalent AI usage is in your specific context. Low base rates 
+          dramatically increase the proportion of false positives, even with highly accurate tools.
+        </p>
+        <p>
+          When base rates are below 10%, human judgment becomes essential in the review process to 
+          avoid unfairly penalizing innocent students.
+        </p>
+      </div>
+    </section>
+    
+    <!-- Main Panel -->
+    <section class="main-panel">
+      <!-- Chart Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Predictive Value by Base Rate</h2>
+        </div>
+        <div class="card-content">
+          <div class="chart-container">
+            <canvas id="chart"></canvas>
+            <div id="referenceLine" class="reference-line">
+              <span class="reference-line-label">95% Confidence Threshold</span>
+            </div>
+          </div>
+          
+          <!-- Key Metrics -->
+          <div class="key-metrics">
+            <div class="metric">
+              <h3>Positive Predictive Value</h3>
+              <div class="value neutral-value" id="ppvValue">83.9%</div>
+              <div class="description">Reliability of AI flags</div>
+            </div>
+            <div class="metric">
+              <h3>Negative Predictive Value</h3>
+              <div class="value neutral-value" id="npvValue">99.9%</div>
+              <div class="description">Reliability of human flags</div>
+            </div>
+            <div class="metric">
+              <h3>Students Using AI</h3>
+              <div class="value positive-value" id="actualAIUsers">10</div>
+              <div class="description">Out of total students</div>
+            </div>
+            <div class="metric">
+              <h3>Students Falsely Accused</h3>
+              <div class="value negative-value" id="falsePositivesValue">2</div>
+              <div class="description">Innocent but flagged</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Impact Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Impact of False Positives</h2>
+        </div>
+        
+        <div class="card-content">
+          <!-- Visual Bar -->
+          <div class="visual-container">
+            <div class="impact-title">
+              <h3>AI Detection Results</h3>
+              <div class="students-total">Students flagged as using AI: <span id="totalFlagged">4</span></div>
+            </div>
+            
+            <div class="visual-bar">
+              <div class="segment true-positive-segment" id="truePositiveBar" style="width: 50%;">
+                <span id="truePositiveCount">2</span>
+              </div>
+              <div class="segment false-positive-segment" id="falsePositiveBar" style="width: 50%;">
+                <span id="falsePositiveCount">2</span>
+              </div>
+            </div>
+            
+            <div class="segment-label">
+              <div>Actually used AI</div>
+              <div>Innocent students</div>
+            </div>
+          </div>
+          
+          <!-- Metrics in a grid - just like the top metrics -->
+          <div class="key-metrics">
+            <div class="metric">
+              <div class="icon-container">
+                <div class="icon icon-accuracy">%</div>
+              </div>
+              <h3>False Accusations</h3>
+              <div class="value warning-value" id="falsePositiveMetric">50%</div>
+              <div class="description">of AI accusations are wrong</div>
+            </div>
+            
+            <div class="metric">
+              <div class="icon-container">
+                <div class="icon icon-reliability">!</div>
+              </div>
+              <h3>Reliability Assessment</h3>
+              <div class="value warning-value" id="reliabilityValue">Low</div>
+              <div class="description" id="reliabilityDescription">Human review essential</div>
+            </div>
+            
+            <div class="metric">
+              <div class="icon-container">
+                <div class="icon icon-npv">✓</div>
+              </div>
+              <h3>Human-Written Texts</h3>
+              <div class="value positive-value" id="npvMetric">99.8%</div>
+              <div class="description">correctly identified</div>
+            </div>
+            
+            <div class="metric">
+              <div class="icon-container">
+                <div class="icon icon-recommendation">→</div>
+              </div>
+              <h3>Recommendation</h3>
+              <div class="value neutral-value" id="recommendationValue">Human Review</div>
+              <div class="description" id="recommendationDescription">Below 95% confidence</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    window.onload = () => {
+      const ctx = document.getElementById('chart').getContext('2d');
+      const baseRateSlider = document.getElementById('baseRateSlider');
+      const sensitivitySlider = document.getElementById('sensitivitySlider');
+      const specificitySlider = document.getElementById('specificitySlider');
+      const numStudentsSlider = document.getElementById('numStudentsSlider');
+
+      const baseRateValue = document.getElementById('baseRateValue');
+      const sensitivityValue = document.getElementById('sensitivityValue');
+      const specificityValue = document.getElementById('specificityValue');
+      const numStudentsValue = document.getElementById('numStudentsValue');
+      
+      // PPV and NPV display elements
+      const ppvValue = document.getElementById('ppvValue');
+      const npvValue = document.getElementById('npvValue');
+      const npvMetric = document.getElementById('npvMetric');
+      
+      // Impact visualization elements
+      const truePositiveBar = document.getElementById('truePositiveBar');
+      const falsePositiveBar = document.getElementById('falsePositiveBar');
+      const truePositiveCount = document.getElementById('truePositiveCount');
+      const falsePositiveCount = document.getElementById('falsePositiveCount');
+      const totalFlagged = document.getElementById('totalFlagged');
+      const falsePositiveMetric = document.getElementById('falsePositiveMetric');
+      
+      // Other display elements
+      const falsePositivesValue = document.getElementById('falsePositivesValue');
+      const actualAIUsers = document.getElementById('actualAIUsers');
+      
+      // Insight metrics
+      const reliabilityValue = document.getElementById('reliabilityValue');
+      const reliabilityDescription = document.getElementById('reliabilityDescription');
+      const recommendationValue = document.getElementById('recommendationValue');
+      const recommendationDescription = document.getElementById('recommendationDescription');
+      
+      const referenceLine = document.getElementById('referenceLine');
+      const container = document.querySelector('.chart-container');
+
+      let chart;
+
+      // Use all integer base rates from 1 to 25 for smooth curve
+      const baseRates = Array.from({length: 25}, (_, i) => i + 1);
+
+      function calculateValues(baseRate, sensPct, specPct) {
+        const p = baseRate / 100, sens = sensPct / 100, spec = specPct / 100;
+        const ppv = (sens * p) / ((sens * p) + ((1 - spec) * (1 - p)));
+        const npv = (spec * (1 - p)) / (((1 - sens) * p) + (spec * (1 - p)));
+        return { ppv: ppv * 100, npv: npv * 100 };
+      }
+
+      function generateChartData(sens, spec) {
+        const ppvData = [], npvData = [];
+        baseRates.forEach(rate => {
+          const { ppv, npv } = calculateValues(rate, sens, spec);
+          ppvData.push(ppv);
+          npvData.push(npv);
+        });
+        return { labels: baseRates, ppvData, npvData };
+      }
+
+      function updateInsights(baseRate, ppv, npv) {
+        // Update NPV metric
+        npvMetric.textContent = npv.toFixed(1) + '%';
+        
+        // Update reliability assessment based on base rate and PPV
+        if (baseRate <= 1) {
+          reliabilityValue.textContent = 'Critical';
+          reliabilityDescription.textContent = 'Effectively a coin flip';
+        } else if (baseRate <= 5) {
+          reliabilityValue.textContent = 'Low';
+          reliabilityDescription.textContent = 'Human review essential';
+        } else if (baseRate <= 10) {
+          reliabilityValue.textContent = 'Moderate';
+          reliabilityDescription.textContent = 'Consider human oversight';
+        } else {
+          reliabilityValue.textContent = 'Better';
+          reliabilityDescription.textContent = 'More automation viable';
+        }
+        
+        // Update recommendation based on PPV
+        if (ppv < 95) {
+          recommendationValue.textContent = 'Human Review';
+          recommendationDescription.textContent = 'Below 95% confidence';
+        } else {
+          recommendationValue.textContent = 'Automation OK';
+          recommendationDescription.textContent = 'Keep appeals process';
+        }
+      }
+
+      function positionReferenceLine() {
+        const paddingTop = parseFloat(getComputedStyle(container).paddingTop);
+        const yAxis = chart.scales.y;
+        const pixel = yAxis.getPixelForValue(95); // update to 95%
+        referenceLine.style.top = (pixel + paddingTop) + 'px';
+        const chartWidth = chart.chartArea.right - chart.chartArea.left;
+        referenceLine.style.left = chart.chartArea.left + 'px';
+        referenceLine.style.width = chartWidth + 'px';
+      }
+
+      function renderChart() {
+        const sens = +sensitivitySlider.value;
+        const spec = +specificitySlider.value;
+        const { labels, ppvData, npvData } = generateChartData(sens, spec);
+
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'PPV (Reliability of AI detections)',
+                data: ppvData,
+                borderColor: '#0066cc',
+                backgroundColor: 'rgba(0,102,204,0.1)',
+                borderWidth: 3,
+                pointRadius: 0,
+                tension: 0.2
+              },
+              {
+                label: 'NPV (Reliability of human detections)',
+                data: npvData,
+                borderColor: '#34c759',
+                backgroundColor: 'rgba(52,199,89,0.1)',
+                borderWidth: 3,
+                pointRadius: 0,
+                tension: 0.2
+              },
+              {
+                label: 'Current Base Rate',
+                type: 'scatter',
+                data: [], // will be set in updateAll
+                borderColor: '#ff9500',
+                backgroundColor: '#ff9500',
+                pointRadius: 8,
+                showLine: false,
+                order: 0
+              }
+            ]
+          },
+          options: {
+            scales: {
+              x: {
+                title: { display: true, text: 'Base Rate (%)', font: { weight: 'bold' }},
+                min: 1,
+                max: 25,
+                grid: {
+                  display: true,
+                  color: 'rgba(0,0,0,0.05)'
+                },
+                ticks: {
+                  callback: (val, idx) => labels[idx] + '%',
+                  stepSize: 2
+                }
+              },
+              y: {
+                title: { display: true, text: 'Predictive Value (%)', font: { weight: 'bold' }},
+                min: 40, max: 105, // allow some space above 100
+                grid: {
+                  display: true,
+                  color: 'rgba(0,0,0,0.05)'
+                },
+                ticks: { stepSize: 10 }
+              }
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed ? ctx.raw.toFixed(1) : ctx.raw}%`
+                }
+              },
+              legend: { 
+                labels: { 
+                  filter: item => item.text !== 'Current Base Rate',
+                  usePointStyle: true,
+                  pointStyle: 'circle',
+                  padding: 15
+                },
+                position: 'top'
+              }
+            },
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+
+        positionReferenceLine();
+      }
+
+      function updateAll() {
+        const baseRate = +baseRateSlider.value;
+        const sens = +sensitivitySlider.value;
+        const spec = +specificitySlider.value;
+        const numStudents = +numStudentsSlider.value;
+
+        baseRateValue.textContent = baseRate;
+        sensitivityValue.textContent = sens;
+        specificityValue.textContent = spec;
+        numStudentsValue.textContent = numStudents;
+
+        // Calculate PPV/NPV for the current base rate
+        const { ppv, npv } = calculateValues(baseRate, sens, spec);
+        ppvValue.textContent = ppv.toFixed(1) + '%';
+        npvValue.textContent = npv.toFixed(1) + '%';
+
+        // Calculate the numbers for our visual
+        const studentsUsingAI = Math.round(numStudents * baseRate / 100);
+        const studentsNotUsingAI = numStudents - studentsUsingAI;
+        
+        const truePositives = Math.round(studentsUsingAI * sens / 100);
+        const falseNegatives = studentsUsingAI - truePositives;
+        
+        const trueNegatives = Math.round(studentsNotUsingAI * spec / 100);
+        const falsePositives = studentsNotUsingAI - trueNegatives;
+        
+        const totalPositives = truePositives + falsePositives;
+        
+        // Update the numbers in the UI
+        actualAIUsers.textContent = studentsUsingAI;
+        falsePositivesValue.textContent = falsePositives;
+        
+        // Update impact visualization
+        if (totalPositives > 0) {
+          const tpPercent = (truePositives / totalPositives) * 100;
+          const fpPercent = (falsePositives / totalPositives) * 100;
+          
+          truePositiveBar.style.width = `${tpPercent}%`;
+          falsePositiveBar.style.width = `${fpPercent}%`;
+          
+          truePositiveCount.textContent = truePositives;
+          falsePositiveCount.textContent = falsePositives;
+          totalFlagged.textContent = totalPositives;
+          
+          falsePositiveMetric.textContent = fpPercent.toFixed(1) + '%';
+          
+        } else {
+          // Handle the case where there are no positives at all
+          truePositiveBar.style.width = "50%";
+          falsePositiveBar.style.width = "50%";
+          truePositiveCount.textContent = "0";
+          falsePositiveCount.textContent = "0";
+          totalFlagged.textContent = "0";
+          falsePositiveMetric.textContent = "0%";
+        }
+
+        updateInsights(baseRate, ppv, npv);
+
+        // Update chart data
+        const { labels, ppvData, npvData } = generateChartData(sens, spec);
+        chart.data.datasets[0].data = ppvData;
+        chart.data.datasets[1].data = npvData;
+
+        // Add a marker for the current base rate
+        chart.data.datasets[2].data = [
+          { x: baseRate, y: ppv },
+          { x: baseRate, y: npv }
+        ];
+
+        chart.update();
+        setTimeout(positionReferenceLine, 50);
+      }
+
+      // wire up
+      [baseRateSlider, sensitivitySlider, specificitySlider, numStudentsSlider].forEach(el =>
+        el.addEventListener('input', updateAll)
+      );
+      window.addEventListener('resize', positionReferenceLine);
+
+      // initial draw
+      renderChart();
+      updateAll();
+    };
+  </script>
+</body>
+</html>
